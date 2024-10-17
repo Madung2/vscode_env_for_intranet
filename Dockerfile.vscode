@@ -1,0 +1,50 @@
+# 베이스 이미지로 python:3.12-slim 사용
+FROM python:3.12-slim
+
+# 환경 변수 설정 (non-interactive 모드)
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 필요한 패키지 설치 (예시로 curl과 code-server)
+RUN apt-get update && apt-get install -y \
+    docker.io \
+    openjdk-17-jdk \
+    vim \
+    gcc \
+    g++ \
+    build-essential \
+    ghostscript \
+    curl \
+    libmecab-dev \
+    mecab \
+    mecab-ipadic-utf8 \
+    && apt-get clean
+
+
+    
+# code-server 설치
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
+# 파이썬 패키지 설치를 위한 pip 업그레이드
+RUN pip install --upgrade pip
+
+# JupyterLab 설치
+RUN pip install jupyterlab
+
+# 필요한 Python 라이브러리 목록을 미리 준비한 requirements.txt로 설치
+COPY requirements.txt /requirements.txt
+
+WORKDIR /workspace
+
+# requirements.txt에 나열된 패키지 설치
+RUN pip install -r /requirements.txt
+
+# FastAPI와 Uvicorn 설치
+RUN pip install fastapi uvicorn
+
+# 포트 설정
+EXPOSE 8080
+EXPOSE 8888  # JupyterLab 기본 포트
+
+# VSCode와 JupyterLab 시작 명령
+
+CMD ["sh", "-c", "code-server --bind-addr 0.0.0.0:8080 --auth none /workspace & jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root"]

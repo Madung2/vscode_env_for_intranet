@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  vscode_jupyter:
+    build: 
+      context: .
+      dockerfile: Dockerfile.vscode
+    container_name: vscode-jupyter
+    ports:
+      - "8080:8080"
+      - "8888:8888"
+    volumes:
+      - ./workspace:/workspace
+    environment:
+      - DEBIAN_FRONTEND=noninteractive
+    command: ["sh", "-c", "code-server --bind-addr 0.0.0.0:8080 --auth none /workspace & jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root"]
+
