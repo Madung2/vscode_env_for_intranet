@@ -17,9 +17,18 @@ RUN apt-get update && apt-get install -y \
     libmecab-dev \
     mecab \
     mecab-ipadic-utf8 \
-    && apt-get clean
+    zsh \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install Oh My Zsh
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
+    && chsh -s $(which zsh) \
+    && git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions \
+    && git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 
+ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH $JAVA_HOME/bin:$PATH
     
 # code-server 설치
 RUN curl -fsSL https://code-server.dev/install.sh | sh
@@ -27,8 +36,9 @@ RUN curl -fsSL https://code-server.dev/install.sh | sh
 # 파이썬 패키지 설치를 위한 pip 업그레이드
 RUN pip install --upgrade pip
 
-# JupyterLab 설치
-RUN pip install jupyterlab
+# FastAPI와 Uvicorn JupyterLab 설치
+RUN pip install fastapi uvicorn jupyterlab
+
 
 # 필요한 Python 라이브러리 목록을 미리 준비한 requirements.txt로 설치
 COPY requirements.txt /requirements.txt
@@ -38,13 +48,23 @@ WORKDIR /workspace
 # requirements.txt에 나열된 패키지 설치
 RUN pip install -r /requirements.txt
 
-# FastAPI와 Uvicorn 설치
-RUN pip install fastapi uvicorn
-
+RUN python -m spacy download en_core_web_sm
+RUN python -m spacy download ko_core_news_sm
 # 포트 설정
 EXPOSE 8080
-EXPOSE 8888  # JupyterLab 기본 포트
 
-# VSCode와 JupyterLab 시작 명령
 
-CMD ["sh", "-c", "code-server --bind-addr 0.0.0.0:8080 --auth none /workspace & jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root"]
+RUN useradd -m coder 
+USER coder
+
+COPY vscode-extensions.txt /tmp/vscode-extensions.txt
+
+# Install the extensions
+RUN cat /tmp/vscode-extensions.txt | while read extension; do \
+    code-server --install-extension $extension || echo "Failed to install $extension"; \
+    done
+# Copy configuration for code-server
+COPY --chown=coder:coder ./config.yaml /home/coder/.config/code-server/config.yaml
+# VSCode 시작 명령
+
+CMD ["sh", "-c", "code-server --bind-addr 0.0.0.0:8080 --auth none"]
